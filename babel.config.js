@@ -1,5 +1,5 @@
 const browsers = require('./browserslist');
-const chalk = require('chalk');
+const { resolvePath } = require('babel-plugin-module-resolver');
 
 const plugins = [
     ['@babel/plugin-proposal-class-properties'],
@@ -16,17 +16,7 @@ const targets = {
     test: 'node 10'
 };
 
-let warned = false;
-
 const config = api => {
-    if (process.env.WARN_RESOLVE) {
-        warned = true;
-        console.warn(
-            chalk.bold.yellowBright(
-                'You may see some warnings that @magento/venia-drivers could not be resolved. This is normal and not an error; Venia exports a virtual import path and babel-plugin-module-resolver is hardcoded to warn about it.'
-            )
-        );
-    }
     const envConfigs = {
         /**
          * Watch mode and build:esm partial transpilation mode.
@@ -65,6 +55,21 @@ const config = api => {
                          */
                         alias: {
                             '^src/drivers$': '@magento/venia-drivers'
+                        },
+                        /**
+                         * Use the default resolvePath function, but suppress
+                         * console warning about missing dependencies by faking
+                         * NODE_ENV=production.
+                         *
+                         * Should be able to remove this if
+                         * tleunen/babel-plugin-module-resolver/pull/351 merges.
+                         */
+                        resolvePath(...args) {
+                            const oldEnv = process.env.NODE_ENV;
+                            process.env.NODE_ENV = 'production';
+                            const resolved = resolvePath(...args);
+                            process.env.NODE_ENV = oldEnv;
+                            return resolved;
                         }
                     }
                 ]
